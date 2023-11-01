@@ -10,7 +10,7 @@ describe('Czechitas Login Page', async () => {
 
         await browser.url('/prihlaseni');
 
-        await browser.pause(5000);
+        
 
     });
 
