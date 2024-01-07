@@ -4,7 +4,14 @@ class ApplicationsPage {
         this.url = '/admin/prihlasky';
     }
 
-    // add page object functions here
+    get table() { return $('.dataTable'); }
+    get rows() { return this.table.$('tbody').$$('tr'); }
+    get searchField() { return $('input[type="search"]'); }
+
+    async open() {
+        await browser.url(this.url);
+    }
+
 
 }
 

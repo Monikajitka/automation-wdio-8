@@ -28,7 +28,7 @@ describe('Login Page', async () => {
         const emailField = $('#email');
         const passwordField = $('#password');
         const loginButton = $('.btn-primary');
-        const userNameDropdown = $('.navbar-right').$('[data-toggle="dropdown"]');
+        const userNameDropdown = $('.navbar-right').$('[data-toggle="dropdown]"');
 
         await emailField.setValue(username);
         await passwordField.setValue(password);

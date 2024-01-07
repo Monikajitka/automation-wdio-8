@@ -1,117 +1,71 @@
-import {username, password} from './fixtures.js'
+import {username, password, expectedApplicationsPageRows} from '../../fixtures.js'
 
-describe('Login Page', async () => {
+async function openLoginPage() {
+    await browser.reloadSession();
+    await browser.url('/prihlaseni');
+}
 
-    beforeEach(async () => {
-        await browser.reloadSession();
-        await browser.url('/prihlaseni');
-    });
+async function login(username, password) {
+    await $('#email').setValue(username);
+    await $('#password').setValue(password);
+    await $('.btn-primary').click();
+}
 
-    it('should show login form', async () => {
-        const emailField = $('#email');
-        await expect(emailField).toBeDisplayed();
+async function goToApplications() {
+    await $('=Přihlášky').click();
+}
 
-        const passwordField = $('#password');
-        console.log('Password field is dislayed: ' + await passwordField.isDisplayed());
-        console.log('Password field is dislayed: ' + await passwordField.isEnabled());
+async function waitForTableToLoad() {
+    await browser.pause(1000);
+    await $('#DataTables_Table_0_processing').waitForDisplayed({ reverse: true});
+}
 
-        const loginButton = $('.btn-primary');
-        console.log('Login button is dislayed: ' + await loginButton.isDisplayed());
-        console.log('Login button text is: ' + await loginButton.getText());
-    });
+async function searchInTable(searchText) {
+    await $('input[type="search"]').setValue(searchText);
+}
 
-    it('should login with valid credentials', async () => {
-        const emailField = $('#email');
-        const passwordField = $('#password');
-        const loginButton = $('.btn-primary');
-
-        await emailField.setValue(username);
-        await passwordField.setValue(password);
-        await loginButton.click();
-
-        const userNameDropdown = $('.navbar-right').$('[data-toggle="dropdown"]');
-        console.log('User currently logged in: ' + await userNameDropdown.getText());
-    });
-
-    it('should not login with invalid credentials', async () => {
-
-        const emailField = $('#email');
-        const passwordField = $('#password');
-        const loginButton = $('.btn-primary');
-
-        await emailField.setValue(username);
-        await passwordField.setValue('invalid');
-        await loginButton.click();
-
-        const toastMessage = $('.toast-message');
-        console.log('Error: ' + await toastMessage.getText());
-
-        const fieldError = $('.invalid-feedback');
-        console.log('Field error: ' + await fieldError.getText());
-
-        console.log('Email field is dislayed: ' + await emailField.isDisplayed());
-        console.log('Password field is dislayed: ' + await passwordField.isDisplayed());
-        console.log('Login button is dislayed: ' + await loginButton.isDisplayed());
-    });
-
-    it('should logout', async () => {
-        const emailField = $('#email');
-        const passwordField = $('#password');
-        const loginButton = $('.btn-primary');
-        const navbarRight = $('.navbar-right')
-        const userNameDropdown = navbarRight.$('[data-toggle="dropdown"]');
-        const logoutLink = $('#logout-link');
-
-        await emailField.setValue(username);
-        await passwordField.setValue(password);
-        await loginButton.click();
-
-        console.log('User currently logged in: ' + await userNameDropdown.getText());
-
-        await userNameDropdown.click();
-        await logoutLink.click();
-
-        console.log('User is logged in: ' + await userNameDropdown.isDisplayed());
-        console.log('Navbar text: ' + await navbarRight.getText());
-    });
-});
+async function getTableRows() {
+    await waitForTableToLoad(); // functions can call other functions
+    return await $('.dataTable').$('tbody').$$('tr');
+}
 
 describe('Applications Page', async () => {
 
     beforeEach(async () => {
-        await browser.reloadSession();
-        await browser.url('/prihlaseni');
-        await $('#email').setValue(username);
-        await $('#password').setValue(password);
-        await $('.btn-primary').click();
-        await $('=Přihlášky').click();
-        await browser.pause(1000);
+        await openLoginPage();
+        await login(username, password);
+        await goToApplications();
     });
 
     it('should list all applications', async () => {
-        console.log('Page title is: ' + await $('h1').getText());
+        const rows = await getTableRows();
 
-        const rows = await $('.dataTable').$('tbody').$$('tr');
-        console.log('There are ' + rows.length + ' rows in the table');
+        await expect(await $('h1')).toHaveText('Přihlášky');
+        await expect(rows.length).toEqual(expectedApplicationsPageRows);
+
         for (const row of rows) {
-            const rowText = await row.getText()
-            console.log(rowText);
+            console.log(await row.getText());
+            const cols = await row.$$('td');
+            await expect(cols[0]).toHaveText(/^(?!\s*$).+/);
+            await expect(cols[1]).toHaveText(/(\d{2}.\d{2}.\d{4}|\d{2}.\d{2}. - \d{2}.\d{2}.\d{4})/);
+            await expect(cols[2]).toHaveText(['Bankovní převod', 'FKSP', 'Hotově', 'Složenka']);
+            await expect(cols[3]).toHaveText(/\d{1,3}(| \d{0,3}) Kč/);
         }
     });
 
     it('should filter in applications', async () => {
-        const searchInput = $('input[type="search"]');
-        const loading = $('#DataTables_Table_0_processing');
         const searchText = 'mar';
+        const unfilteredRows = await getTableRows();
 
-        await searchInput.setValue(searchText);
-        await browser.pause(1000);
-        await loading.waitForDisplayed({ reverse: true});
+        await searchInTable(searchText);
 
-        const filteredRows = await $('.dataTable').$('tbody').$$('tr')
-        console.log('There are ' + filteredRows.length + ' filtered rows in the table');
+        const filteredRows = await getTableRows();
+        await expect(filteredRows.length).toBeLessThanOrEqual(unfilteredRows.length);
+
         for (const row of filteredRows) {
             console.log(await row.getText());
+            const cols = await row.$$('td');
+            await expect(cols[0]).toHaveTextContaining(searchText, { ignoreCase: true });
         }
     });
 });
